@@ -1,7 +1,7 @@
-# Using Multipass to create private cloud environment on Mac.
+# Using Multipass to create private cloud environment local to your workstation.
 
 After you install Multipass on your Mac/Windows
-see instructions here [multipass.run](https://multipass.run/)
+see instructions here [multipass](https://canonical.com/multipass)
 
 # Launching VM using multipass
 
@@ -25,8 +25,9 @@ Sync GitHub Repository
 
 Now it's time to download a copy of this tutorial which contains the configuration files and templates that will be used build your Kubernetes cluster from the ground up. Clone the Kubernetes The Hard Way git repository using the git command:
 
+```
 git clone https://github.com/livespotty/kubernetes-the-hard-way-on-lxd.git
-
+```
 
 Change into the `kubernetes-the-hard-way` directory:
 
@@ -124,7 +125,8 @@ Client Version: v1.34.3
 Kustomize Version: v5.7.1
 ```
 
-At this point the `jumpbox` has been set up with all the command line tools and utilities necessary to complete the labs in this tutorial.
+At this point the `jumpbox` / `host` machine has been set up with all the command line tools and utilities necessary to complete the labs in this tutorial.
 
+Note: In this host, we are going to create 3 master nodes (ie., 3 etcd), 3 worker nodes and haproxy node to route traffic to 3 master nodes.
 
 Next: [prerequisites local cloud setup](01-prerequisites.md)

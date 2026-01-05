@@ -196,6 +196,7 @@ Copy the appropriate `kubelet` and `kube-proxy` kubeconfig files to each worker 
 ```
 for instance in worker-0 worker-1 worker-2; do  
   lxc file push ${instance}.kubeconfig ${instance}/var/lib/kubelet/kubeconfig
+  lxc exec ${instance} -- mkdir -p /var/lib/kube-proxy/
   lxc file push kube-proxy.kubeconfig ${instance}/var/lib/kube-proxy/kubeconfig
 done
 ```

@@ -146,6 +146,8 @@ To ensure network traffic crossing the CNI `bridge` network is processed by `ipt
 }
 ```
 
+Note: Just ignore if there is any error from above command.
+
 ```bash
 {
   echo "net.bridge.bridge-nf-call-iptables = 1" \

@@ -3,7 +3,7 @@
 ## Initializing LXD
 
 If you never used LXD on your host, you need to initialize it:
-Ensure you have lxc version 4.0 and above; Note: These lxc instructions does not work in version 2.x
+Ensure you have lxc version 5.x and above
 
 ### Note:
 
@@ -16,7 +16,7 @@ Installing LXD snap, please be patient.
 
 ```
 
-Create a new storage pool, and select the backend to be dir, this is the only supported backend for this tutorial.
+Create a new storage pool, and select the backend to be `dir`, this is the only supported backend for this tutorial.
 
 ```
 lxc storage create lxd-storage dir
