@@ -4,50 +4,22 @@ Kubernetes components are stateless and store cluster state in [etcd](https://gi
 
 ## Prerequisites
 
-The commands in this lab must be run on each controller instance: `controller-0`, `controller-1`, and `controller-2`.
-We will download all files in the main server, push all files to the controllers, and run commands on each controller.
+The commands in this lab must be run on each master instance: `master-0`, `master-1`, and `master-2`.
+We will download all files in the main server, push all files to the masters, and run commands on each master.
 
 ## Bootstrapping an etcd Cluster Member
 
-### Download and Install the etcd Binaries
-
-Download the official etcd release binaries from the [coreos/etcd](https://github.com/coreos/etcd) GitHub project:
-
-```
-wget -q --show-progress --https-only --timestamping \
-  "https://github.com/etcd-io/etcd/releases/download/v3.4.15/etcd-v3.4.15-linux-amd64.tar.gz"
-
-```
 
 Extract and install the `etcd` server and the `etcdctl` command line utility:
 
 ```
 {
-for instance in controller-0 controller-1 controller-2; do
-  lxc file push etcd-v3.4.15-linux-amd64.tar.gz ${instance}/home/ubuntu/
-  lxc exec ${instance} -- tar -xvf /home/ubuntu/etcd-v3.4.15-linux-amd64.tar.gz -C /home/ubuntu/
-  lxc exec ${instance} -- mv /home/ubuntu/etcd-v3.4.15-linux-amd64/etcd /usr/local/bin/
-  lxc exec ${instance} -- mv /home/ubuntu/etcd-v3.4.15-linux-amd64/etcdctl /usr/local/bin/
-done
-}
-```
-If ARM64 architecture, then use below link
-
-```
-wget -q --show-progress --https-only --timestamping \
-  "https://github.com/etcd-io/etcd/releases/download/v3.4.15/etcd-v3.4.15-linux-arm64.tar.gz"
-
-```
-
-Extract and install the `etcd` server and the `etcdctl` command line utility:
-
-```
-{
-for instance in controller-0 controller-1 controller-2; do
-  lxc file push etcd-v3.4.15-linux-arm64.tar.gz ${instance}/home/ubuntu/
-  lxc exec ${instance} -- tar -xvf /home/ubuntu/etcd-v3.4.15-linux-arm64.tar.gz -C /home/ubuntu/
-  lxc exec ${instance} -- mv /home/ubuntu/etcd-v3.4.15-linux-arm64/etcd /usr/local/bin/
-  lxc exec ${instance} -- mv /home/ubuntu/etcd-v3.4.15-linux-arm64/etcdctl /usr/local/bin/
+for instance in master-0 master-1 master-2; do
+  lxc file push downloads/controller/etcd ${instance}/home/ubuntu/
+  lxc file push downloads/client/etcdctl ${instance}/home/ubuntu/
+  lxc file push units/etcd.service ${instance}/home/ubuntu/
+  lxc exec ${instance} -- mv /home/ubuntu/etcd /usr/local/bin/
+  lxc exec ${instance} -- mv /home/ubuntu/etcdctl /usr/local/bin/
 done
 }
 ```
@@ -56,11 +28,11 @@ done
 
 ```
 {
-for instance in controller-0 controller-1 controller-2; do
+for instance in master-0 master-1 master-2; do
   lxc exec ${instance} -- mkdir -p /etc/etcd /var/lib/etcd
-  lxc exec ${instance} -- cp /home/ubuntu/ca.pem /etc/etcd/
-  lxc exec ${instance} -- cp /home/ubuntu/kubernetes-key.pem /etc/etcd/
-  lxc exec ${instance} -- cp /home/ubuntu/kubernetes.pem /etc/etcd/
+  lxc exec ${instance} -- cp /home/ubuntu/ca.crt /etc/etcd/
+  lxc exec ${instance} -- cp /home/ubuntu/kube-api-server.key /etc/etcd/
+  lxc exec ${instance} -- cp /home/ubuntu/kube-api-server.crt /etc/etcd/
 done
 }
 ```
@@ -69,47 +41,12 @@ The instance internal IP address will be used to serve client requests and commu
 
 Each etcd member must have a unique name within an etcd cluster. Set the etcd name to match the hostname of the current compute instance
 
-Create the `etcd.service` systemd unit file for each of the controllers:
+Copy the `etcd.service` systemd unit file for each of the master nodes:
 
 ```
 {
-for instance in 0 1 2; do
-
-  INTERNAL_IP=10.0.2.1${instance}
-
-  ETCD_NAME=controller-${instance}
-
-cat <<EOF | tee etcd.service
-[Unit]
-Description=etcd
-Documentation=https://github.com/coreos
-[Service]
-ExecStart=/usr/local/bin/etcd \\
-  --name ${ETCD_NAME} \\
-  --cert-file=/etc/etcd/kubernetes.pem \\
-  --key-file=/etc/etcd/kubernetes-key.pem \\
-  --peer-cert-file=/etc/etcd/kubernetes.pem \\
-  --peer-key-file=/etc/etcd/kubernetes-key.pem \\
-  --trusted-ca-file=/etc/etcd/ca.pem \\
-  --peer-trusted-ca-file=/etc/etcd/ca.pem \\
-  --peer-client-cert-auth \\
-  --client-cert-auth \\
-  --initial-advertise-peer-urls https://${INTERNAL_IP}:2380 \\
-  --listen-peer-urls https://${INTERNAL_IP}:2380 \\
-  --listen-client-urls https://${INTERNAL_IP}:2379,https://127.0.0.1:2379 \\
-  --advertise-client-urls https://${INTERNAL_IP}:2379 \\
-  --initial-cluster-token etcd-cluster-0 \\
-  --initial-cluster controller-0=https://10.0.2.10:2380,controller-1=https://10.0.2.11:2380,controller-2=https://10.0.2.12:2380 \\
-  --initial-cluster-state new \\
-  --data-dir=/var/lib/etcd
-Restart=on-failure
-RestartSec=5
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  lxc file push etcd.service ${ETCD_NAME}/etc/systemd/system/
-
+for instance in master-0 master-1 master-2; do
+    lxc exec ${instance} -- cp /home/ubuntu/etcd.service /etc/systemd/system/
 done
 }
 ```
@@ -120,7 +57,7 @@ done
 
 ```
 {
-for instance in controller-0 controller-1 controller-2; do
+for instance in master-0 master-1 master-2; do
   lxc exec ${instance} -- systemctl daemon-reload
   lxc exec ${instance} -- systemctl enable etcd
   lxc exec ${instance} -- systemctl start etcd
@@ -128,27 +65,25 @@ done
 }
 ```
 
-> Remember to run the above commands on each controller node: `controller-0`, `controller-1`, and `controller-2`.
+> Remember to run the above commands on each master node: `master-0`, `master-1`, and `master-2`.
 
 ## Verification
 
-Login to one of the controllers, or you can check in all of them:
+Login to one of the master nodes, or you can check in all of them:
 
 ```
-lxc exec controller-0 -- sudo /bin/bash
+lxc exec master-0 -- sudo /bin/bash
 ```
 
 Execute the verification command:
 
 ```
-ETCDCTL_API=3 etcdctl member list --endpoints=https://127.0.0.1:2379 --cacert=/etc/etcd/ca.pem --cert=/etc/etcd/kubernetes.pem --key=/etc/etcd/kubernetes-key.pem
+etcdctl member list
 ```
 > output
 
 ```
-8ec27d324d7508b8, started, controller-0, https://10.0.2.10:2380, https://10.0.2.10:2379
-c18be024472ccb33, started, controller-2, https://10.0.2.12:2380, https://10.0.2.12:2379
-df64d128890b1397, started, controller-1, https://10.0.2.11:2380, https://10.0.2.11:2379
+6702b0a34e2cfd39, started, controller, http://127.0.0.1:2380, http://127.0.0.1:2379, false
 ```
 
 Next: [Bootstrapping the Kubernetes Control Plane](08-bootstrapping-kubernetes-controllers.md)

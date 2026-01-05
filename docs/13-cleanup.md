@@ -9,7 +9,7 @@ Please be sure you want to delete everything berofe executing this script...
 ```
 {
 lxc stop --all 
-lxc delete controller-0 controller-1 controller-2 worker-0 worker-1 worker-2 haproxy
+lxc delete master-0 master-1 master-2 worker-0 worker-1 worker-2 haproxy
 lxc profile delete kube-profile
 lxc network delete kube0
 lxc network delete kube1

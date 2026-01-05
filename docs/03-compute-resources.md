@@ -16,14 +16,12 @@ lxc network create kube1 ipv6.address=none ipv4.address=10.0.2.1/24 ipv4.nat=fal
 
 We will now create the lxc containers 
 
-Note: Based on the architecture and version of ubuntu replace the image accordingly. For eg., "ubuntu/bionic/cloud/arm64", if you are using ARM64 architecture and ubuntu 20.04
+## Master Nodes
 
-## Controllers
-
-Create the three controllers:
+Create the three master nodes:
 ```
 for i in 0 1 2; do
-  lxc launch images:ubuntu/18.04/amd64 controller-${i} -p kube-profile -s lxd-storage
+  lxc launch ubuntu:24.04 master-${i} -p kube-profile -s lxd-storage
 done
 ```
 
@@ -32,13 +30,13 @@ done
 Create the 3 workers:
 ```
 for i in 0 1 2; do
-  lxc launch images:ubuntu/18.04/amd64 worker-${i} -p kube-profile -s lxd-storage
+  lxc launch ubuntu:24.04 worker-${i} -p kube-profile -s lxd-storage
 done
 ```
 
 ## HA Proxy Container
 ```
-lxc launch images:ubuntu/18.04/amd64 haproxy -p kube-profile -s lxd-storage
+lxc launch ubuntu:24.04 haproxy -p kube-profile -s lxd-storage
 ```
 
 Check if all the containers are created:
@@ -52,19 +50,20 @@ All containers should be running, but they have no network assigned to them. You
 +--------------+---------+------+------+------------+-----------+
 |     NAME     |  STATE  | IPV4 | IPV6 |    TYPE    | SNAPSHOTS |
 +--------------+---------+------+------+------------+-----------+
-| controller-0 | RUNNING |      |      | PERSISTENT | 0         |
 +--------------+---------+------+------+------------+-----------+
-| controller-1 | RUNNING |      |      | PERSISTENT | 0         |
+| master-0     | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
-| controller-2 | RUNNING |      |      | PERSISTENT | 0         |
+| master-1     | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
-| haproxy      | RUNNING |      |      | PERSISTENT | 0         |
+| master-2     | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
-| worker-0     | RUNNING |      |      | PERSISTENT | 0         |
+| haproxy      | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
-| worker-1     | RUNNING |      |      | PERSISTENT | 0         |
+| worker-0     | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
-| worker-2     | RUNNING |      |      | PERSISTENT | 0         |
+| worker-1     | RUNNING |      |      | CONTAINER  | 0         |
++--------------+---------+------+------+------------+-----------+
+| worker-2     | RUNNING |      |      | CONTAINER  | 0         |
 +--------------+---------+------+------+------------+-----------+
 ````
 
@@ -72,8 +71,8 @@ Attach the networks to the containers:
 ```
 {
 for i in 0 1 2; do
-  lxc network attach kube0 controller-${i}
-  lxc network attach kube1 controller-${i}  
+  lxc network attach kube0 master-${i}
+  lxc network attach kube1 master-${i}  
   lxc network attach kube0 worker-${i}
   lxc network attach kube1 worker-${i}  
 done
@@ -95,9 +94,9 @@ network:
        addresses: [10.0.2.1${i}/24]       
 EOF
 
-sudo lxc file push 10-lxc.yaml controller-${i}/etc/netplan/
+sudo lxc file push 10-lxc.yaml master-${i}/etc/netplan/
 
-lxc exec controller-${i} -- sudo netplan apply
+lxc exec master-${i} -- sudo netplan apply
 
 cat <<EOF |tee 10-lxc.yaml 
 network:
@@ -151,29 +150,31 @@ Now list all the containers and check for the network configurations:
  lxc list
 ```
 ```
-+--------------+---------+-------------------+------+------------+-----------+
-|     NAME     |  STATE  |       IPV4        | IPV6 |    TYPE    | SNAPSHOTS |
-+--------------+---------+-------------------+------+------------+-----------+
-| controller-0 | RUNNING | 10.0.2.10 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.17 (eth0)  |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
-| controller-1 | RUNNING | 10.0.2.11 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.33 (eth0)  |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
-| controller-2 | RUNNING | 10.0.2.12 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.96 (eth0)  |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
-| haproxy      | RUNNING | 10.0.1.100 (eth0) |      | CONTAINER  | 0         |
-+--------------+---------+-------------------+------+------------+-----------+
-| worker-0     | RUNNING | 10.0.2.20 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.111 (eth0) |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
-| worker-1     | RUNNING | 10.0.2.21 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.189 (eth0) |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
-| worker-2     | RUNNING | 10.0.2.22 (eth1)  |      | CONTAINER  | 0         |
-|              |         | 10.0.1.152 (eth0) |      |            |           |
-+--------------+---------+-------------------+------+------------+-----------+
++--------------+---------+-------------------+------+-----------+-----------+
+|     NAME     |  STATE  |       IPV4        | IPV6 |   TYPE    | SNAPSHOTS |
++--------------+---------+-------------------+------+-----------+-----------+
++--------------+---------+-------------------+------+-----------+-----------+
+| master-0     | RUNNING | 10.0.2.10 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.107 (eth0) |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| master-1     | RUNNING | 10.0.2.11 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.186 (eth0) |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| master-2     | RUNNING | 10.0.2.12 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.11 (eth0)  |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| haproxy      | RUNNING | 10.0.1.152 (eth0) |      | CONTAINER | 0         |
+|              |         | 10.0.1.100 (eth0) |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| worker-0     | RUNNING | 10.0.2.20 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.112 (eth0) |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| worker-1     | RUNNING | 10.0.2.21 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.95 (eth0)  |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
+| worker-2     | RUNNING | 10.0.2.22 (eth1)  |      | CONTAINER | 0         |
+|              |         | 10.0.1.106 (eth0) |      |           |           |
++--------------+---------+-------------------+------+-----------+-----------+
 ```
 
 You can check if the containers can ping each other:
@@ -183,7 +184,7 @@ lxc exec worker-0 -- ping 10.0.2.22
 
 ## Configuring HAProxy container
 
-We need to install HAProxy on our HAProxy container and configure it to load balance to all controllers:
+We need to install HAProxy on our HAProxy container and configure it to load balance to all master nodes:
 
 ```
 lxc exec haproxy -- apt-get update
@@ -194,7 +195,7 @@ lxc exec haproxy -- apt-get install -y haproxy
 ```
 
 
-Include needed lines in the end of the file, with your eth0 controller IPS:
+Include needed lines in the end of the file, with your eth0 master IPS:
 
 ``` 
 {
@@ -212,7 +213,7 @@ backend backendnodes
 END
 
 for i in 0 1 2; do
-EXTERNAL_IP=$(lxc info controller-${i} | grep --only-matching  '10.0.1.[0-9]*')
+EXTERNAL_IP=$(lxc info master-${i} | grep --only-matching  '10.0.1.[0-9]*')
 lxc exec haproxy -- sudo tee -a /etc/haproxy/haproxy.cfg << END
     server node${i} ${EXTERNAL_IP}:6443 check
 END
@@ -222,7 +223,7 @@ lxc exec haproxy -- sudo service haproxy restart
 }
 ```
 
-Check the configuration file for the IPs from the controllers: (Make sure it was assigned the eth0 IP addresses from your deployment)
+Check the configuration file for the IPs from the master nodes: (Make sure it was assigned the eth0 IP addresses from your deployment)
 
 ```
 lxc exec haproxy -- sudo vi /etc/haproxy/haproxy.cfg

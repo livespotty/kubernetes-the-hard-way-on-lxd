@@ -11,17 +11,9 @@ By default, if you have used multipass, lxd and lxc is already installed.
 
 ```
 lxc --version
-4.0.8
+Installing LXD snap, please be patient.
+5.21.4 LTS
 
-```
-
-You may ignore if you already have lxc installed. You can skip the next step and directly go to creating storage pool
-Just a little notes on installing the right version on ubuntu 18.04, you will not need to execute below snippet if you are using ubuntu 20.04
-
-```
-sudo apt clean
-sudo apt install -t xenial-backports lxd lxd-client
-sudo apt update
 ```
 
 Create a new storage pool, and select the backend to be dir, this is the only supported backend for this tutorial.
@@ -35,11 +27,11 @@ You can now check the lxd storage by running:
 
 ```
 ubuntu@k8s-hardway-18:~$ lxc storage list
-+-------------+-------------+--------+----------------------------------------+---------+
-|    NAME     | DESCRIPTION | DRIVER |                 SOURCE                 | USED BY |
-+-------------+-------------+--------+----------------------------------------+---------+
-| lxd-storage |             | dir    | /var/lib/lxd/storage-pools/lxd-storage | 0       |
-+-------------+-------------+--------+----------------------------------------+---------+
++-------------+--------+----------------------------------------------------+-------------+---------+---------+
+|    NAME     | DRIVER |                       SOURCE                       | DESCRIPTION | USED BY |  STATE  |
++-------------+--------+----------------------------------------------------+-------------+---------+---------+
+| lxd-storage | dir    | /var/snap/lxd/common/lxd/storage-pools/lxd-storage |             | 0       | CREATED |
++-------------+--------+----------------------------------------------------+-------------+---------+---------+
 ```
 
 You should see no containers created at this point.
@@ -47,7 +39,7 @@ You should see no containers created at this point.
 ## Creating containers profiles
 
 We will use a special profile to run our containers, since some components require special access to modules to run. This is not safe for a production environment, and should be used only for this lab.
-More info [here](https://github.com/juju-solutions/bundle-canonical-kubernetes/wiki/Deploying-on-LXD).
+More info [here](https://ubuntu.com/kubernetes/charmed-k8s/docs/install-local).
 
 create the profile configuration yaml with the following content:
 

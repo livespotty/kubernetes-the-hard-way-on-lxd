@@ -9,7 +9,8 @@ In this lab you will generate an encryption key and an [encryption config](https
 Generate an encryption key:
 
 ```
-ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+export ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+
 ```
 
 ## The Encryption Config File
@@ -17,25 +18,14 @@ ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
 Create the `encryption-config.yaml` encryption config file:
 
 ```
-cat > encryption-config.yaml <<EOF
-kind: EncryptionConfig
-apiVersion: v1
-resources:
-  - resources:
-      - secrets
-    providers:
-      - aescbc:
-          keys:
-            - name: key1
-              secret: ${ENCRYPTION_KEY}
-      - identity: {}
-EOF
+envsubst < configs/encryption-config.yaml \
+  > encryption-config.yaml
 ```
 
-Copy the `encryption-config.yaml` encryption config file to each controller instance:
+Copy the `encryption-config.yaml` encryption config file to each master instance:
 
 ```
-for instance in controller-0 controller-1 controller-2; do
+for instance in master-0 master-1 master-2; do
   lxc file push encryption-config.yaml ${instance}/home/ubuntu/  
 done
 ```
