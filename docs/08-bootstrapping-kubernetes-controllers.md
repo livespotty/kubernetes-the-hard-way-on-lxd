@@ -52,8 +52,53 @@ The instance internal IP address will be used to advertise the API Server to mem
 
 ```
 {
-for instance in master-0 master-1 master-2; do
-  lxc exec ${instance} -- cp /home/ubuntu/kube-apiserver.service /etc/systemd/system/
+for instance in 0 1 2; do
+
+INTERNAL_IP=10.0.2.1${instance}
+
+cat <<EOF | tee kube-apiserver.service
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+
+[Service]
+ExecStart=/usr/local/bin/kube-apiserver \
+  --advertise-address=${INTERNAL_IP} \
+  --allow-privileged=true \
+  --apiserver-count=3 \
+  --audit-log-maxage=30 \
+  --audit-log-maxbackup=3 \
+  --audit-log-maxsize=100 \
+  --audit-log-path=/var/log/audit.log \
+  --authorization-mode=Node,RBAC \
+  --bind-address=0.0.0.0 \
+  --client-ca-file=/var/lib/kubernetes/ca.crt \
+  --enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
+  --etcd-cafile=/var/lib/kubernetes/ca.crt \
+  --etcd-certfile=/var/lib/kubernetes/kube-api-server.crt \
+  --etcd-keyfile=/var/lib/kubernetes/kube-api-server.key \
+  --etcd-servers=https://10.0.2.10:2379,https://10.0.2.11:2379,https://10.0.2.12:2379 \
+  --event-ttl=1h \
+  --encryption-provider-config=/var/lib/kubernetes/encryption-config.yaml \
+  --kubelet-certificate-authority=/var/lib/kubernetes/ca.crt \
+  --kubelet-client-certificate=/var/lib/kubernetes/kube-api-server.crt \
+  --kubelet-client-key=/var/lib/kubernetes/kube-api-server.key \
+  --runtime-config='api/all=true' \
+  --service-account-key-file=/var/lib/kubernetes/service-accounts.crt \
+  --service-account-signing-key-file=/var/lib/kubernetes/service-accounts.key \
+  --service-account-issuer=https://server.kubernetes.local:6443 \
+  --service-node-port-range=30000-32767 \
+  --tls-cert-file=/var/lib/kubernetes/kube-api-server.crt \
+  --tls-private-key-file=/var/lib/kubernetes/kube-api-server.key \
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+lxc file push kube-apiserver.service master-${instance}/etc/systemd/system/
 done
 }
 ```

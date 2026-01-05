@@ -46,4 +46,4 @@ worker-1   Ready    <none>   118s   v1.34.3
 worker-2   Ready    <none>   118s   v1.34.3
 ```
 
-Next: [Deploying the DNS Cluster Add-on](11-dns-addon.md)
+Next: [Smoke Test](12-smoke-test.md)
