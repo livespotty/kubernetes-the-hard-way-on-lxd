@@ -27,12 +27,17 @@ The target audience for this tutorial is someone planning to support a productio
 
 Kubernetes The Hard Way guides you through bootstrapping a highly available Kubernetes cluster with end-to-end encryption between components and RBAC authentication.
 
-- [Kubernetes](https://github.com/kubernetes/kubernetes) 1.22.3
-- [containerd Container Runtime](https://github.com/containerd/containerd) 1.4.4
-- [gVisor](https://github.com/google/gvisor) 50c283b9f56bb7200938d9e207355f05f79f0d17
-- [CNI Container Networking](https://github.com/containernetworking/cni) 0.9.1
-- [etcd](https://github.com/coreos/etcd) v3.4.15
+- [Kubernetes](https://github.com/kubernetes/kubernetes) 1.34.3
+- [containerd Container Runtime](https://github.com/containerd/containerd) 2.2.0
+- [CNI Container Networking](https://github.com/containernetworking/cni) 1.8.0
+- [etcd](https://github.com/coreos/etcd) v3.6.6
 - [CoreDNS](https://github.com/coredns/coredns) v1.8
+
+## Directory Structure
+
+- `configs`: Configuration files for the Kubernetes services.
+- `units`: Systemd unit files for the Kubernetes services.
+- `docs`: The lab documentation.
 
 ## Labs
 

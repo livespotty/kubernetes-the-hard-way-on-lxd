@@ -1,412 +1,130 @@
 # Provisioning a CA and Generating TLS Certificates
 
-In this lab you will provision a [PKI Infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure) using CloudFlare's PKI toolkit, [cfssl](https://github.com/cloudflare/cfssl), then use it to bootstrap a Certificate Authority, and generate TLS certificates for the following components: etcd, kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, and kube-proxy.
+In this lab you will provision a [PKI Infrastructure](https://en.wikipedia.org/wiki/Public_key_infrastructure) using openssl to bootstrap a Certificate Authority, and generate TLS certificates for the following components: kube-apiserver, kube-controller-manager, kube-scheduler, kubelet, and kube-proxy. The commands in this section should be run from the `jumpbox`.
 
 ## Certificate Authority
 
-In this section you will provision a Certificate Authority that can be used to generate additional TLS certificates.
+In this section you will
+provision a Certificate Authority that can be used to generate additional TLS
+certificates for the other Kubernetes components. Setting up CA and generating
+certificates using `openssl` can be time-consuming, especially when doing it for the first
+time. To streamline this lab, I've included an openssl configuration file
+`ca.conf`, which defines all the details needed to generate certificates for each
+Kubernetes component.
 
-Generate the CA configuration file, certificate, and private key:
+Take a moment to review the `ca.conf` configuration
+file:
 
+```bash
+cat ca.conf
 ```
+
+You don't need to understand everything in the `ca.conf`
+file to complete this tutorial, but you should consider it a starting point for
+learning `openssl` and the configuration that goes into managing certificates
+at a high level.
+
+Every certificate authority starts with a private key and root
+certificate. In this section we are going to create a self-signed certificate
+authority, and while that's all we need for this tutorial, this shouldn't be
+considered something you would do in a real-world production environment.
+
+Generate
+the CA configuration file, certificate, and private key:
+
+```bash
 {
-
-cat > ca-config.json <<EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "8760h"
-    },
-    "profiles": {
-      "kubernetes": {
-        "usages": ["signing", "key encipherment", "server auth", "client auth"],
-        "expiry": "8760h"
-      }
-    }
-  }
-}
-EOF
-
-cat > ca-csr.json <<EOF
-{
-  "CN": "Kubernetes",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Portland",
-      "O": "Kubernetes",
-      "OU": "CA",
-      "ST": "Oregon"
-    }
-  ]
-}
-EOF
-
-cfssl gencert -initca ca-csr.json | cfssljson -bare ca
-
+  openssl genrsa -out ca.key 4096
+  openssl req -x509 -new -sha512 -noenc \
+    -key ca.key -days 3653 \
+    -config ca.conf \
+    -out ca.crt
 }
 ```
 
 Results:
 
-```
-ca-key.pem
-ca.pem
-```
-
-## Client and Server Certificates
-
-In this section you will generate client and server certificates for each Kubernetes component and a client certificate for the Kubernetes `admin` user.
-
-### The Admin Client Certificate
-
-Generate the `admin` client certificate and private key:
-
-```
-{
-
-cat > admin-csr.json <<EOF
-{
-  "CN": "admin",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "system:masters",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  admin-csr.json | cfssljson -bare admin
-
-}
+```txt
+ca.crt
+ca.key
 ```
 
-Results:
+## Create Client and Server Certificates
 
+In this section you will
+generate client and server certificates for each Kubernetes component and a
+client certificate for the Kubernetes `admin` user.
+
+Generate the certificates and
+private keys:
+
+```bash
+certs=(
+  "admin" "worker-0" "worker-1" "worker-2"
+  "kube-proxy" "kube-scheduler"
+  "kube-controller-manager"
+  "kube-api-server"
+  "service-accounts"
+)
 ```
-admin-key.pem
-admin.pem
-```
 
-### The Kubelet Client Certificates
+```bash
+for i in ${certs[*]}; do
+  openssl genrsa -out "${i}.key" 4096
 
-Kubernetes uses a [special-purpose authorization mode](https://kubernetes.io/docs/admin/authorization/node/) called Node Authorizer, that specifically authorizes API requests made by [Kubelets](https://kubernetes.io/docs/concepts/overview/components/#kubelet). In order to be authorized by the Node Authorizer, Kubelets must use a credential that identifies them as being in the `system:nodes` group, with a username of `system:node:<nodeName>`. In this section you will create a certificate for each Kubernetes worker node that meets the Node Authorizer requirements.
+  openssl req -new -key "${i}.key" -sha256 \
+    -config "ca.conf" -section ${i} \
+    -out "${i}.csr"
 
-Generate a certificate and private key for each Kubernetes worker node:
-
-```
-for i in 0 1 2; do
-cat > worker-${i}-csr.json <<EOF
-{
-  "CN": "system:node:worker-${i}",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "system:nodes",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-EXTERNAL_IP=$(lxc info worker-${i} | grep --only-matching  '10.0.1.[0-9]*')
-
-INTERNAL_IP=10.0.2.2${i}
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -hostname=worker-${i},${EXTERNAL_IP},${INTERNAL_IP} \
-  -profile=kubernetes \
-  worker-${i}-csr.json | cfssljson -bare worker-${i}
+  openssl x509 -req -days 3653 -in "${i}.csr" \
+    -copy_extensions copyall \
+    -sha256 -CA "ca.crt" \
+    -CAkey "ca.key" \
+    -CAcreateserial \
+    -out "${i}.crt"
 done
 ```
 
-Results:
+The results of running the above
+command will generate a private key, certificate request, and signed SSL certificate
+for each of the Kubernetes components. You can list the generated files with the
+following command:
 
-```
-worker-0-key.pem
-worker-0.pem
-worker-1-key.pem
-worker-1.pem
-worker-2-key.pem
-worker-2.pem
+```bash
+ls -1 *.crt *.key *.csr
 ```
 
-### The Controller Manager Client Certificate
-
-Generate the `kube-controller-manager` client certificate and private key:
-
-```
-{
-
-cat > kube-controller-manager-csr.json <<EOF
-{
-  "CN": "system:kube-controller-manager",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "system:kube-controller-manager",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
-
-}
-```
-
-Results:
-
-```
-kube-controller-manager-key.pem
-kube-controller-manager.pem
-```
-
-
-### The Kube Proxy Client Certificate
-
-Generate the `kube-proxy` client certificate and private key:
-
-```
-{
-
-cat > kube-proxy-csr.json <<EOF
-{
-  "CN": "system:kube-proxy",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "system:node-proxier",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  kube-proxy-csr.json | cfssljson -bare kube-proxy
-
-}
-```
-
-Results:
-
-```
-kube-proxy-key.pem
-kube-proxy.pem
-```
-
-### The Scheduler Client Certificate
-
-Generate the `kube-scheduler` client certificate and private key:
-
-```
-{
-
-cat > kube-scheduler-csr.json <<EOF
-{
-  "CN": "system:kube-scheduler",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "system:kube-scheduler",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  kube-scheduler-csr.json | cfssljson -bare kube-scheduler
-
-}
-```
-
-Results:
-
-```
-kube-scheduler-key.pem
-kube-scheduler.pem
-```
-
-
-### The Kubernetes API Server Certificate
-
-The `kubernetes-the-hard-way` static IP address will be included in the list of subject alternative names for the Kubernetes API Server certificate. This will ensure the certificate can be validated by remote clients.
-
-Generate the Kubernetes API Server certificate and private key:
-
-```
-{
-
-KUBERNETES_PUBLIC_ADDRESS=10.0.1.100
-
-cat > kubernetes-csr.json <<EOF
-{
-  "CN": "kubernetes",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "Kubernetes",
-      "OU": "Kubernetes The Hard Way on LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -hostname=10.32.0.1,10.0.2.10,10.0.2.11,10.0.2.12,${KUBERNETES_PUBLIC_ADDRESS},127.0.0.1,kubernetes.default \
-  -profile=kubernetes \
-  kubernetes-csr.json | cfssljson -bare kubernetes
-
-}
-```
-
-Results:
-
-```
-kubernetes-key.pem
-kubernetes.pem
-```
-
-## The Service Account Key Pair
-
-The Kubernetes Controller Manager leverages a key pair to generate and sign service account tokens as describe in the [managing service accounts](https://kubernetes.io/docs/admin/service-accounts-admin/) documentation.
-
-Generate the `service-account` certificate and private key:
-
-```
-{
-
-cat > service-account-csr.json <<EOF
-{
-  "CN": "service-accounts",
-  "key": {
-    "algo": "rsa",
-    "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "L": "Plano",
-      "O": "Kubernetes",
-      "OU": "Kubernetes The Hard Way with LXD",
-      "ST": "Texas"
-    }
-  ]
-}
-EOF
-
-cfssl gencert \
-  -ca=ca.pem \
-  -ca-key=ca-key.pem \
-  -config=ca-config.json \
-  -profile=kubernetes \
-  service-account-csr.json | cfssljson -bare service-account
-
-}
-```
-
-Results:
-
-```
-service-account-key.pem
-service-account.pem
-```
-
+> The `kube-proxy`, `kube-controller-manager`, `kube-scheduler`, and `kubelet` client certificates will be used to generate client authentication configuration files in the next lab.
 
 ## Distribute the Client and Server Certificates
 
-Copy the appropriate certificates and private keys to each worker instance:
+In this section you will copy the various certificates to every machine at a path where each Kubernetes component will search for its certificate pair. In a real-world environment these certificates should be treated like a set of sensitive secrets as they are used as credentials by the Kubernetes components to authenticate to each other.
 
-```
-for instance in worker-0 worker-1 worker-2; do
-  lxc file push ca.pem ${instance}/home/ubuntu/
-  lxc file push ${instance}-key.pem ${instance}/home/ubuntu/
-  lxc file push ${instance}.pem ${instance}/home/ubuntu/
+Copy the appropriate certificates and private keys to the `worker-0` and other worker machines:
+
+```bash
+for host in worker-0 worker-1 worker-2; do
+  lxc exec ${host} -- mkdir -p /var/lib/kubelet/
+  lxc file push ca.crt ${host}/var/lib/kubelet/
+  lxc file push ${host}.crt ${host}/var/lib/kubelet/
+  lxc file push ${host}.key ${host}/var/lib/kubelet/
 done
 ```
 
-Copy the appropriate certificates and private keys to each controller instance:
+Copy the appropriate certificates and private keys to the `master` machine:
 
-```
-for instance in controller-0 controller-1 controller-2; do
-  lxc file push ca.pem ${instance}/home/ubuntu/
-  lxc file push ca-key.pem ${instance}/home/ubuntu/
-  lxc file push kubernetes-key.pem ${instance}/home/ubuntu/
-  lxc file push kubernetes.pem ${instance}/home/ubuntu/
-  lxc file push service-account-key.pem ${instance}/home/ubuntu/
-  lxc file push service-account.pem  ${instance}/home/ubuntu/
+```bash
+for host in master-0 master-1 master-2; do
+  lxc file push kube-api-server.key  ${host}/home/ubuntu/
+  lxc file push kube-api-server.crt ${host}/home/ubuntu/
+  lxc file push service-accounts.key ${host}/home/ubuntu/
+  lxc file push service-accounts.crt ${host}/home/ubuntu/
+  lxc file push ca.key ${host}/home/ubuntu/
+  lxc file push ca.crt ${host}/home/ubuntu/
 done
 ```
 
 > The `kube-proxy`, `kube-controller-manager`, `kube-scheduler`, and `kubelet` client certificates will be used to generate client authentication configuration files in the next lab.
+
 
 Next: [Generating Kubernetes Configuration Files for Authentication](05-kubernetes-configuration-files.md)

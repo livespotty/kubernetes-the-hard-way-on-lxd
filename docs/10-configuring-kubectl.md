@@ -15,13 +15,13 @@ Generate a kubeconfig file suitable for authenticating as the `admin` user:
   KUBERNETES_PUBLIC_ADDRESS=10.0.1.100
 
   kubectl config set-cluster kubernetes-the-hard-way \
-    --certificate-authority=ca.pem \
+    --certificate-authority=ca.crt \
     --embed-certs=true \
     --server=https://${KUBERNETES_PUBLIC_ADDRESS}:6443
 
   kubectl config set-credentials admin \
-    --client-certificate=admin.pem \
-    --client-key=admin-key.pem
+    --client-certificate=admin.crt \
+    --client-key=admin.key
 
   kubectl config set-context kubernetes-the-hard-way \
     --cluster=kubernetes-the-hard-way \
@@ -31,24 +31,6 @@ Generate a kubeconfig file suitable for authenticating as the `admin` user:
 }
 ```
 
-## Verification
-
-Check the health of the remote Kubernetes cluster:
-
-```
-kubectl get componentstatuses
-```
-
-> output
-
-```
-NAME                 STATUS    MESSAGE             ERROR
-controller-manager   Healthy   ok
-scheduler            Healthy   ok
-etcd-1               Healthy   {"health":"true"}
-etcd-2               Healthy   {"health":"true"}
-etcd-0               Healthy   {"health":"true"}
-```
 
 List the nodes in the remote Kubernetes cluster:
 ```
@@ -59,9 +41,9 @@ kubectl get nodes
 
 ```
 NAME       STATUS   ROLES    AGE    VERSION
-worker-0   Ready    <none>   117s   v1.22.3
-worker-1   Ready    <none>   118s   v1.22.3
-worker-2   Ready    <none>   118s   v1.22.3
+worker-0   Ready    <none>   117s   v1.34.3
+worker-1   Ready    <none>   118s   v1.34.3
+worker-2   Ready    <none>   118s   v1.34.3
 ```
 
 Next: [Deploying the DNS Cluster Add-on](11-dns-addon.md)

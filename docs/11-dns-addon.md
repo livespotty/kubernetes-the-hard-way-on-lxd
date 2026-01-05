@@ -1,4 +1,4 @@
-# Deploying the DNS Cluster Add-on
+# Deploying the DNS Cluster Add-on (optional)
 
 In this lab you will deploy the [DNS add-on](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/) which provides DNS based service discovery, backed by [CoreDNS](https://coredns.io/), to applications running inside the Kubernetes cluster.
 
@@ -40,13 +40,13 @@ lxc list
 +--------------+---------+-------------------+------+------------+-----------+
 |     NAME     |  STATE  |       IPV4        | IPV6 |    TYPE    | SNAPSHOTS |
 +--------------+---------+-------------------+------+------------+-----------+
-| controller-0 | RUNNING | 10.0.2.10 (eth1)  |      | CONTAINER  | 0         |
+| master-0     | RUNNING | 10.0.2.10 (eth1)  |      | CONTAINER  | 0         |
 |              |         | 10.0.1.39 (eth0)  |      |            |           |
 +--------------+---------+-------------------+------+------------+-----------+
-| controller-1 | RUNNING | 10.0.2.11 (eth1)  |      | CONTAINER  | 0         |
+| master-1     | RUNNING | 10.0.2.11 (eth1)  |      | CONTAINER  | 0         |
 |              |         | 10.0.1.252 (eth0) |      |            |           |
 +--------------+---------+-------------------+------+------------+-----------+
-| controller-2 | RUNNING | 10.0.2.12 (eth1)  |      | CONTAINER  | 0         |
+| master-2     | RUNNING | 10.0.2.12 (eth1)  |      | CONTAINER  | 0         |
 |              |         | 10.0.1.111 (eth0) |      |            |           |
 +--------------+---------+-------------------+------+------------+-----------+
 | haproxy      | RUNNING | 10.0.1.100 (eth0) |      | CONTAINER  | 0         |
