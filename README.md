@@ -9,15 +9,13 @@ This guide has some shell scripts to execute operations on containers. While exe
 
 # Kubernetes The Hard Way
 
-This tutorial walks you through setting up Kubernetes the hard way in a single host using LXC containers. This guide is not for people looking for a fully automated command to bring up a Kubernetes cluster. If that's what you are looking for, then check out [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine), or the [Getting Started Guides](http://kubernetes.io/docs/getting-started-guides/). For a complete deployment using juju on LXD, you can use [conjure](https://tutorials.ubuntu.com/tutorial/install-kubernetes-with-conjure-up#0) Please note that the deployment with conjure is slightly differen than this tutorial and uses different components and versions.
+This tutorial walks you through setting up Kubernetes the hard way in a single host using LXC containers. This guide is not for people looking for a fully automated command to bring up a Kubernetes cluster. If that's what you are looking for, then check out [Getting Started Guides](http://kubernetes.io/docs/getting-started-guides/). For a complete deployment using juju on LXD, you can use [conjure](https://tutorials.ubuntu.com/tutorial/install-kubernetes-with-conjure-up#0) Please note that the deployment with conjure is slightly differen than this tutorial and uses different components and versions.
 
 Kubernetes The Hard Way is optimized for learning, which means taking the long route to ensure you understand each task required to bootstrap a Kubernetes cluster.
 
 > The results of this tutorial should not be viewed as production ready, and may receive limited support from the community, but don't let that stop you from learning!
 
-You can try this tutorial in a VM created with Virtualbox, make sure to create the VM in a host with and SSD or M.2 card for storage.
-
-or you can try this tutorial using multipass (https://multipass.run/)
+You can try this tutorial using multipass (https://canonical.com/multipass/install)
 
 ## Target Audience
 
@@ -57,7 +55,3 @@ This tutorial assumes you have a server with Ubuntu 20.04, and an SSD or M.2 dis
 - [Deploying the DNS Cluster Add-on](docs/11-dns-addon.md)
 - [Smoke Test](docs/12-smoke-test.md)
 - [Cleaning Up](docs/13-cleanup.md)
-
-I ran using Multipass; If you have very little memory (say 8GB), I recommend this option.
-[https://multipass.run](https://multipass.run/)
-I was able to run the entire k8s cluster (3+1+3 nodes) with less than 2GB.
